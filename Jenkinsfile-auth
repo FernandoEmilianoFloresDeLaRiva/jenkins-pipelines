@@ -4,6 +4,9 @@ pipeline {
     environment {
         APP_NAME = 'auth-ms'
         REPO_URL = 'https://github.com/FernandoEmilianoFloresDeLaRiva/auth-ms'
+        SSH_CRED_ID = 'ssh-key-ec2'
+        EC2_USER = 'ubuntu'
+        REMOTE_PATH = '/home/ubuntu/auth-ms'
     }
 
     stages {
@@ -22,11 +25,18 @@ pipeline {
                     switch(branch) {
                         case 'main':
                             env.DEPLOY_ENV = 'production'
-                            env.EC2_USER = 'ubuntu'
                             env.EC2_IP = ''
-                            env.REMOTE_PATH = '/home/ubuntu/auth-ms'
-                            env.SSH_CRED_ID = 'ssh-key-ec2'
                             env.NODE_ENV = 'production'
+                            break
+                        case 'dev':
+                            env.DEPLOY_ENV = 'development'
+                            env.EC2_IP = ''
+                            env.NODE_ENV = 'development'
+                            break
+                        case 'qa':
+                            env.DEPLOY_ENV = 'qa'
+                            env.EC2_IP = ''
+                            env.NODE_ENV = 'qa'
                             break
                         default:
                             env.DEPLOY_ENV = 'none'
@@ -61,9 +71,22 @@ pipeline {
                 expression { env.DEPLOY_ENV != 'none' }
             }
             steps {
-                withCredentials([sshUserPrivateKey(credentialsId: env.SSH_CRED_ID, keyFileVariable: 'SSH_KEY')]) {
-                    sh 'chmod +x ./deploy.sh'
-                    script {
+                script {
+                    def envSuffix = env.DEPLOY_ENV
+                    def sshKeyId = "ssh-key-ec2"
+                    def dbHostId = "db-host-${envSuffix}"
+                    def dbUserId = "db-user-${envSuffix}"
+                    def dbPassId = "db-pass-${envSuffix}"
+                    def dbNameId = "db-name-${envSuffix}"
+
+                    withCredentials([
+                        sshUserPrivateKey(credentialsId: SSH_CRED_ID, keyFileVariable: 'SSH_KEY'),
+                        string(credentialsId: dbHostId, variable: 'DB_HOST'),
+                        string(credentialsId: dbUserId, variable: 'DB_USER'),
+                        string(credentialsId: dbPassId, variable: 'DB_PASS'),
+                        string(credentialsId: dbNameId, variable: 'DB_NAME')
+                    ]) {
+                        sh 'chmod +x ./deploy.sh'    
                         def branchName = env.GIT_BRANCH.replaceAll('origin/', '')
                         sh """
                         SSH_KEY=\$SSH_KEY \
@@ -74,9 +97,15 @@ pipeline {
                         APP_NAME=\$APP_NAME \
                         NODE_ENV=\$NODE_ENV \
                         GIT_BRANCH=${branchName} \
+                        DB_HOST=\$DB_HOST \
+                        DB_USER=\$DB_USER \
+                        DB_PASS=\$DB_PASS \
+                        DB_NAME=\$DB_NAME \
+                        JWT_SECRET=\$s3cr3tJWT!2025 \
                         ./deploy.sh
                         """
                     }
+                    
                 }
             }
         }
