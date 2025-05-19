@@ -23,7 +23,7 @@ pipeline {
                     echo "Rama detectada: ${branch}"
 
                     switch(branch) {
-                        case 'main':
+                        case 'master':
                             env.DEPLOY_ENV = 'production'
                             env.EC2_IP = '3.230.217.180'
                             env.NODE_ENV = 'production'
