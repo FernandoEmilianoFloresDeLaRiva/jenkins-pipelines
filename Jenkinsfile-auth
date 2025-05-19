@@ -25,7 +25,7 @@ pipeline {
                     switch(branch) {
                         case 'main':
                             env.DEPLOY_ENV = 'production'
-                            env.EC2_IP = ''
+                            env.EC2_IP = '3.230.217.180'
                             env.NODE_ENV = 'production'
                             break
                         case 'dev':
